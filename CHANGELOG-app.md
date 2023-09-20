@@ -1,3 +1,22 @@
+## _**v2.9.2**_ (09-20-2023)
+- [NEW] Added support for Air Quality Sensor devices.
+
+## _**v2.9.1**_ (09-04-2023)
+- [FIX] The last release broke humidity and blinds position attributes.
+- [FIX] Fixed capability filtering not blocking unused capabilities.
+- [UPDATE] More optimizations and performance improvements (Thanks @nh.schottfam).
+
+## _**v2.9.0**_ (08-26-2023)
+- [UPDATE] Modified the device debug page to show and additional view which is more Human readable.
+- [UPDATE] Modified the way that attributes, capabilities, and commands are assigned natively.  I've basically detemined exactly what attributes, commands and capabilities are required by the plugin and ignore all others.
+- [UPDATE] Tons of optimizations performance improvements (Thanks @nh.schottfam).
+
+## _**v2.8.0**_ (08-22-2023)
+- [NEW] Added new custom attribute and capabilities filter text box.  This allows you to enter comma separated text to assist in filtering out capabilities outside the inputs. It supports a per-device and global format.  Here is an example of mixing per-device and global filters: [device_id1:speed,switch], [device_id2:temperature,motion], temperature
+- [NEW] Added Issues & Support section to allow users to submit issues directly from the app.
+- [NEW] Added Cool Only Thermostat input to allow users to select thermostats that only support cooling.
+- [UPDATE] Updated device debug output to include list of filtered out capabilitie, attributes and commands.  The included filters are a combo of user selected filters and those that are statically built into the app.
+
 ## _**v2.7.0**_ (01-21-2023)
 - [NEW] Added thermostat filters to the filters page.  So you can remove the fan, heat, cool, modes.
 - [NEW] Added support for Security Keypads to be used as a security system. Thanks @lnjustin.
@@ -6,7 +25,7 @@
 
 ## _**v2.6.1**_ (12-21-2022)
 - [FIX] Fix for plugin version not showing updated.
-- 
+
 ## _**v2.6.0**_ (12-20-2022)
 - [NEW] UI now shows the plugin ip and port on the Generate Config Button.
 - [NEW] There is now a test plugin communication button on the plugin config page to that shows status, version, and the plugin config to test that Hubitat can reach the plugin.

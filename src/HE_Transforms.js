@@ -53,24 +53,46 @@ module.exports = class Transforms {
         return validValues;
     }
 
+    aqiToPm25(aqi) {
+        // this.log("Transforming %s.", aqi.toString())
+        if (aqi === undefined || aqi > 500 || aqi < 0) {
+            return 0; // Error or unknown response
+        } else if (aqi <= 50) {
+            return 1; // Return EXCELLENT
+        } else if (aqi <= 100) {
+            return 2; // Return GOOD
+        } else if (aqi <= 150) {
+            return 3; // Return FAIR
+        } else if (aqi <= 200) {
+            return 4; // Return INFERIOR
+        } else if (aqi > 200) {
+            return 5; // Return POOR (Homekit only goes to cat 5, so combined the last two AQI cats of Very Unhealty and Hazardous.
+        }
+    }
+
     transformAttributeState(attr, val, charName, opts) {
         switch (attr) {
+            case "airQualityIndex":
+                return this.aqiToPm25(val);
             case "switch":
-                return val === "on";
+                if (charName === "Active") {
+                    return val === "on" ? Characteristic.Active.ACTIVE : Characteristic.Active.INACTIVE;
+                } else {
+                    return val === "on";
+                }
             case "door":
                 switch (val) {
                     case "open":
                         return Characteristic.TargetDoorState.OPEN;
                     case "opening":
-                        return charName && charName === "Target Door State" ? Characteristic.TargetDoorState.OPEN : Characteristic.TargetDoorState.OPENING;
+                        return charName && charName === "Target Door State" ? Characteristic.TargetDoorState.OPEN : Characteristic.CurrentDoorState.OPENING;
                     case "closed":
                         return Characteristic.TargetDoorState.CLOSED;
                     case "closing":
-                        return charName && charName === "Target Door State" ? Characteristic.TargetDoorState.CLOSED : Characteristic.TargetDoorState.CLOSING;
+                        return charName && charName === "Target Door State" ? Characteristic.TargetDoorState.CLOSED : Characteristic.CurrentDoorState.CLOSING;
                     default:
-                        return charName && charName === "Target Door State" ? Characteristic.TargetDoorState.OPEN : Characteristic.TargetDoorState.STOPPED;
+                        return charName && charName === "Target Door State" ? Characteristic.TargetDoorState.OPEN : Characteristic.CurrentDoorState.STOPPED;
                 }
-
             case "fanMode":
                 switch (val) {
                     case "low":
@@ -82,7 +104,6 @@ module.exports = class Transforms {
                     default:
                         return CommunityTypes.FanOscilationMode.SLEEP;
                 }
-
             case "lock":
                 switch (val) {
                     case "locked":
@@ -92,7 +113,6 @@ module.exports = class Transforms {
                     default:
                         return Characteristic.LockCurrentState.UNKNOWN;
                 }
-
             case "button":
                 switch (val) {
                     case "pushed":
@@ -104,14 +124,12 @@ module.exports = class Transforms {
                     default:
                         return null;
                 }
-
             case "pushed":
                 return Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS;
             case "held":
                 return Characteristic.ProgrammableSwitchEvent.LONG_PRESS;
             case "doubleTapped":
                 return Characteristic.ProgrammableSwitchEvent.DOUBLE_PRESS;
-
             case "fanState":
                 return val === "off" || val === "auto" ? Characteristic.CurrentFanState.IDLE : Characteristic.CurrentFanState.BLOWING_AIR;
             case "fanTargetState":
@@ -157,8 +175,10 @@ module.exports = class Transforms {
                     case "dc":
                     case "USB Cable":
                         return 1;
+
                     case "battery":
                         return 0;
+
                     default:
                         return 2;
                 }
@@ -175,6 +195,7 @@ module.exports = class Transforms {
             case "speed":
                 // console.log("transformAttributeState(speed): ", this.fanSpeedToLevel(val));
                 return this.fanSpeedToLevel(val, opts);
+            // case "speed":
             case "level": {
                 let lvl = parseInt(val);
                 if (this.configItems.round_levels === true && lvl < 5) lvl = 0;
@@ -190,7 +211,6 @@ module.exports = class Transforms {
                     return undefined;
                 }
                 return Math.round(Math.ceil(parseFloat(val)), 0);
-
             case "energy":
             case "humidity":
             case "power":
@@ -204,7 +224,7 @@ module.exports = class Transforms {
                     case "heating":
                         return Characteristic.CurrentHeatingCoolingState.HEAT;
                     default:
-                        // The above list should be inclusive, but we need to return something if they change stuff.
+                        // The above list should be inclusive, but we need to return  something if they change stuff.
                         // TODO: Double check if Hubitat can send "auto" as operatingstate. I don't think it can.
                         return Characteristic.CurrentHeatingCoolingState.OFF;
                 }
@@ -237,6 +257,7 @@ module.exports = class Transforms {
                 } else {
                     return this.convertAlarmState(val);
                 }
+
             default:
                 return val;
         }

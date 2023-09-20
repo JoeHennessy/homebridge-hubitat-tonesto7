@@ -31,8 +31,12 @@ module.exports = class DeviceCharacteristics {
                 if (attr === "status" && char === Characteristic.StatusActive) {
                     callback(null, accClass.transforms.transformStatus(this.context.deviceData.status));
                 } else {
-                    callback(null, accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
+                    const val = accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts);
+                    if (val === undefined || val === null) {
+                        accClass.logError(`Error getting value for Characteristic [${c.displayName}] Using Attribute (${attr}) for ${acc.displayName} (${acc.context.deviceData.name})`);
+                    }
                     accClass.log_get(attr, char, acc, accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
+                    callback(null, val);
                 }
             });
             if (opts.props && Object.keys(opts.props).length) c.setProps(opts.props);
@@ -43,8 +47,12 @@ module.exports = class DeviceCharacteristics {
             if (attr === "status" && char === Characteristic.StatusActive) {
                 c.updateValue(accClass.transforms.transformStatus(this.context.deviceData.status));
             } else {
-                c.updateValue(accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
+                const val = accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts);
+                if (val === undefined || val === null) {
+                    accClass.logError(`Error getting value for Characteristic [${c.displayName}] Using Attribute (${attr}) for ${acc.displayName} (${acc.context.deviceData.name})`);
+                }
                 accClass.log_get(attr, char, acc, accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
+                c.updateValue(val);
             }
         }
         if (!c._events.change) {
@@ -60,8 +68,11 @@ module.exports = class DeviceCharacteristics {
             if (!c._events.get) {
                 c.on("get", (callback) => {
                     const val = accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts);
-                    callback(null, val);
+                    if (val === undefined || val === null) {
+                        accClass.logError(`Error getting value for Characteristic [${c.displayName}] Using Attribute (${attr}) for ${acc.displayName} (${acc.context.deviceData.name})`);
+                    }
                     accClass.log_get(attr, char, acc, val);
+                    callback(null, val);
                 });
             }
             if (!c._events.set) {
@@ -82,10 +93,15 @@ module.exports = class DeviceCharacteristics {
                 c.getValue();
             }
             c.getValue();
+            accClass.log_set(attr, char, acc, accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
             accClass.storeCharacteristicItem(attr, this.context.deviceData.deviceid, c);
         } else {
-            c.updateValue(accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
+            const val = accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts);
+            if (val === undefined || val === null) {
+                accClass.logError(`Error getting value for Characteristic [${c.displayName}] Using Attribute (${attr}) for ${acc.displayName} (${acc.context.deviceData.name})`);
+            }
             accClass.log_get(attr, char, acc, accClass.transforms.transformAttributeState(opts.get_altAttr || attr, this.context.deviceData.attributes[opts.get_altValAttr || attr], c.displayName, opts));
+            c.updateValue(val);
         }
         if (!c._events.change) {
             c.on("change", (chg) => {
@@ -156,14 +172,19 @@ module.exports = class DeviceCharacteristics {
     }
 
     air_quality(_accessory, _service) {
-        let c = _accessory.getOrAddService(_service).getCharacteristic(Characteristic.AirQuality);
-        if (!c._events.get) {
-            c.on("get", (callback) => {
-                callback(null, Characteristic.AirQuality);
-            });
+        _accessory.getOrAddService(_service).setCharacteristic(Characteristic.StatusFault, Characteristic.StatusFault.NO_FAULT);
+        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.StatusActive, "status");
+        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.AirQuality, "airQualityIndex");
+        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.StatusLowBattery, "battery");
+        if (_accessory.hasAttribute("pm25")) {
+            _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.PM2_5Density, "pm25");
         }
-        this.accessories.storeCharacteristicItem("airQuality", _accessory.context.deviceData.deviceid, c);
-        _accessory.context.deviceGroups.push("airQuality");
+        if (_accessory.hasCapability("Tamper Alert")) {
+            _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.StatusTampered, "tamper");
+        } else {
+            _accessory.getOrAddService(_service).removeCharacteristic(Characteristic.StatusTampered);
+        }
+        _accessory.context.deviceGroups.push("air_quality");
         return _accessory;
     }
 
@@ -312,6 +333,24 @@ module.exports = class DeviceCharacteristics {
         _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.CurrentDoorState, "door");
         _accessory.manageGetSetCharacteristic(_service, _accessory, Characteristic.TargetDoorState, "door");
         _accessory.getOrAddService(_service).getCharacteristic(Characteristic.ObstructionDetected).updateValue(false);
+        return _accessory;
+    }
+
+    humidifier(_accessory, _service) {
+        if (_accessory.hasCapability("Humidifier") && _accessory.hasCapability("Dehumidifier")) {
+            _accessory.getOrAddService(_service).setCharacteristic(Characteristic.TargetHumidifierDehumidifierState, Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER);
+        } else if (_accessory.hasCapability("Humidifier")) {
+            _accessory.getOrAddService(_service).setCharacteristic(Characteristic.TargetHumidifierDehumidifierState, Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER);
+            _accessory.getOrAddService(_service).setCharacteristic(Characteristic.CurrentHumidifierDehumidifierState, Characteristic.CurrentHumidifierDehumidifierState.HUMIDIFYING);
+        } else if (_accessory.hasCapability("Dehumidifier")) {
+            _accessory.getOrAddService(_service).setCharacteristic(Characteristic.TargetHumidifierDehumidifierState, Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER);
+            _accessory.getOrAddService(_service).setCharacteristic(Characteristic.CurrentHumidifierDehumidifierState, Characteristic.CurrentHumidifierDehumidifierState.DEHUMIDIFYING);
+        }
+        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.CurrentRelativeHumidity, "humidity");
+        _accessory.manageGetSetCharacteristic(_service, _accessory, Characteristic.Active, "switch");
+
+        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.WaterLevel, "waterLevel");
+        _accessory.context.deviceGroups.push("humidifier");
         return _accessory;
     }
 
@@ -773,7 +812,7 @@ module.exports = class DeviceCharacteristics {
     }
 
     window_shade(_accessory, _service) {
-        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.CurrentPosition, _accessory.hasCommand("setLevel") ? "level" : "position", {
+        _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.CurrentPosition, _accessory.hasCommand("setPosition") ? "position" : "level", {
             props: {
                 steps: 10,
             },
@@ -782,7 +821,7 @@ module.exports = class DeviceCharacteristics {
         if (!c._events.get || !c._events.set) {
             if (!c._events.get) {
                 c.on("get", (callback) => {
-                    callback(null, parseInt(_accessory.hasCommand("setLevel") ? _accessory.context.deviceData.attributes.level : _accessory.context.deviceData.attributes.position));
+                    callback(null, parseInt(_accessory.hasCommand("setPosition") ? _accessory.context.deviceData.attributes.position : _accessory.context.deviceData.attributes.level));
                 });
             }
             if (!c._events.set) {
@@ -793,15 +832,15 @@ module.exports = class DeviceCharacteristics {
                         let v = value;
                         if (value <= 2) v = 0;
                         if (value >= 98) v = 100;
-                        _accessory.sendCommand(callback, _accessory, _accessory.context.deviceData, _accessory.hasCommand("setLevel") ? "setLevel" : "setPosition", {
+                        _accessory.sendCommand(callback, _accessory, _accessory.context.deviceData, _accessory.hasCommand("setPosition") ? "setPosition" : "setLevel", {
                             value1: v,
                         });
                     }
                 });
             }
-            this.accessories.storeCharacteristicItem(_accessory.hasCommand("setLevel") ? "level" : "position", _accessory.context.deviceData.deviceid, c);
+            this.accessories.storeCharacteristicItem(_accessory.hasCommand("setPosition") ? "position" : "level", _accessory.context.deviceData.deviceid, c);
         } else {
-            c.updateValue(this.transforms.transformAttributeState(_accessory.hasCommand("setLevel") ? "level" : "position", _accessory.hasCommand("setLevel") ? _accessory.context.deviceData.attributes.level : _accessory.context.deviceData.attributes.position));
+            c.updateValue(this.transforms.transformAttributeState(_accessory.hasCommand("setPosition") ? "position" : "level", _accessory.hasCommand("setPosition") ? _accessory.context.deviceData.attributes.position : _accessory.context.deviceData.attributes.level));
         }
         _accessory.manageGetCharacteristic(_service, _accessory, Characteristic.PositionState, "windowShade");
         _accessory.getOrAddService(_service).getCharacteristic(Characteristic.ObstructionDetected).updateValue(false);

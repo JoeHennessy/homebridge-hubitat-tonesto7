@@ -1,3 +1,24 @@
+## _**v2.9.4**_ (09-20-2023)
+
+- [FIX] Fixed issues with some sensors not updating there status.
+- [NEW] Added support for Air Quality sensors.
+
+## _**v2.9.3**_ (09-20-2023)
+
+- [FIX] Testing some fixes for the Garage Door Status and contacts
+
+## _**v2.9.2**_ (09-04-2023)
+
+- [FIX] Tweaks for better windowShade support.
+
+## _**v2.9.0**_ (08-26-2023)
+
+- [FIX] Tweaked the detection logic slightly to help with devices that show that they have invalid values for some characteristics.
+
+## _**v2.8.3**_ (08-22-2023)
+
+- [FIX] Package updates for security.
+
 ## _**v2.7.1**_ (01-21-2023)
 
 - [FIX] Package updates for security.
